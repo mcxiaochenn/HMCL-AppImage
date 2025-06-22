@@ -88,12 +88,12 @@ jobs:
 
         # Create a wrapper script to launch HMCL, using bundled JDK
         cat <<\'EOF' > AppDir/usr/bin/HMCL.sh
-#!/bin/bash
-export JAVA_HOME="$(dirname "$(readlink -f "${0}")")/../lib/jvm"
-export PATH="$JAVA_HOME/bin:$PATH"
-export FONTCONFIG_PATH="$(dirname "$(readlink -f "${0}")")/../share/fonts"
-exec "$(dirname "$(readlink -f "${0}")")/../opt/hmcl/HMCL" "$@"
-EOF
+        #!/bin/bash
+        export JAVA_HOME="$(dirname "$(readlink -f "${0}")")/../lib/jvm"
+        export PATH="$JAVA_HOME/bin:$PATH"
+        export FONTCONFIG_PATH="$(dirname "$(readlink -f "${0}")")/../share/fonts"
+        exec "$(dirname "$(readlink -f "${0}")")/../opt/hmcl/HMCL" "$@"
+        EOF
         chmod +x AppDir/usr/bin/HMCL.sh
 
         mv ${{ steps.get_hmcl_assets.outputs.HMCL_ICON }} AppDir/HMCL.png
