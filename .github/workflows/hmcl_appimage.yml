@@ -33,6 +33,7 @@ jobs:
       run: |
         JDK_URL="https://cdn.azul.com/zulu/bin/zulu21.42.19-ca-jdk21.0.7-linux_x64.tar.gz"
         axel $JDK_URL -o zulu21.tar.gz 
+        mkdir -p HMCL.AppDir/usr/lib/jdk
         tar -xzf zulu21.tar.gz -C HMCL.AppDir/usr/lib/jdk --strip-components=1
 
     - name: Download and extract WenQuanYi font
@@ -74,6 +75,7 @@ jobs:
 
     - name: Extract HMCL.jar
       run: |
+        mkdir -p HMCL.AppDir/usr/share/java/
         cp HMCL.jar HMCL.AppDir/usr/share/java/
 
     - name: Build AppImage
