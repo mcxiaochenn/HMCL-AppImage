@@ -36,7 +36,7 @@ jobs:
           HMCL_VERSION=$(echo "$SH_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.sh)")
         else
           # Triggered manually, find latest stable release
-          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq 
+          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq '[.[] | select(.prerelease == false)][0]')
           if [ -z "$LATEST_RELEASE_INFO" ] || [ "$LATEST_RELEASE_INFO" == "null" ]; then
             echo "Could not find latest stable release. Exiting."
             exit 1
