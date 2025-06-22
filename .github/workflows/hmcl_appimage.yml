@@ -1,0 +1,102 @@
+name: HMCL AppImage Builder
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libfuse2 axel
+        wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
+        # wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
+        chmod +x appimagetool
+        sudo mv appimagetool /usr/local/bin/
+        sudo apt-get install -y imagemagick
+
+    - name: Set Folders
+      run: |
+        git clone https://github.com/mcxiaochenn/HMCL-AppImage.git
+        cd HMCL-AppImage
+        cp -r HMCL.AppDir ~/
+
+    - name: Download and extract JDK 21
+      run: |
+        JDK_URL="https://cdn.azul.com/zulu/bin/zulu21.42.19-ca-jdk21.0.7-linux_x64.tar.gz"
+        axel $JDK_URL -o zulu21.tar.gz 
+        mkdir -p HMCL.AppDir/usr/lib/jdk
+        tar -xzf zulu21.tar.gz -C HMCL.AppDir/usr/lib/jdk --strip-components=1
+
+    - name: Download and extract WenQuanYi font
+      run: |
+        FONT_URL="https://github.com/layerssss/wqy/raw/refs/heads/gh-pages/fonts/WenQuanYiZenHei.ttf"
+        wget -q "$FONT_URL" -O WenQuanYiZenHei.ttf
+        mkdir -p HMCL.AppDir/usr/share/fonts/truetype/wenquanyi
+        mv WenQuanYiZenHei.ttf HMCL.AppDir/usr/share/fonts/truetype/wenquanyi/
+
+    - name: Get HMCL .jar file
+      id: get_hmcl_assets
+      run: |
+        if [[ "${{ github.event_name }}" == "release" ]]; then
+          # Triggered by release event, get .jar from release assets
+          JAR_URL=$(jq --raw-output ".assets[] | select(.name | endswith(\".jar\")) | .browser_download_url" "$GITHUB_EVENT_PATH")
+          if [ -z "$JAR_URL" ]; then
+            echo "No .jar file found in release assets. Exiting."
+            exit 1
+          fi
+          wget -q "$JAR_URL" -O HMCL.jar
+          HMCL_VERSION=$(echo "$JAR_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.jar)")
+        else
+          # Triggered manually, find latest stable release
+          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq '.[0]')
+          if [ -z "$LATEST_RELEASE_INFO" ] || [ "$LATEST_RELEASE_INFO" == "null" ]; then
+            echo "Could not find latest stable release. Exiting."
+            exit 1
+          fi
+          JAR_URL=$(echo "$LATEST_RELEASE_INFO" | jq --raw-output ".assets[] | select(.name | endswith(\".jar\")) | .browser_download_url")
+          if [ -z "$JAR_URL" ]; then
+            echo "No .jar file found in latest stable release assets. Exiting."
+            exit 1
+          fi
+          wget -q "$JAR_URL" -O HMCL.jar
+          HMCL_VERSION=$(echo "$JAR_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.jar)")
+        fi
+        echo "HMCL_VERSION=$HMCL_VERSION" >> "$GITHUB_OUTPUT"
+        echo "HMCL_JAR_FILE=HMCL.jar" >> "$GITHUB_OUTPUT"
+
+    - name: Extract HMCL.jar
+      run: |
+        mkdir -p HMCL.AppDir/usr/share/java/
+        cp HMCL.jar HMCL.AppDir/usr/share/java/
+
+    - name: Build AppImage
+      run: |
+        export VERSION=${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}
+        ARCH=x86_64 appimagetool HMCL.AppDir HMCL-$VERSION.AppImage
+
+    - name: Upload AppImage to Release
+      uses: softprops/action-gh-release@v1
+      if: github.event_name == 'release'
+      with:
+        files: HMCL-${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}.AppImage
+        tag_name: ${{ github.event.release.tag_name }}
+        name: ${{ github.event.release.name }}
+        body: ${{ github.event.release.body }}
+        prerelease: ${{ github.event.release.prerelease }}
+        draft: ${{ github.event.release.draft }}
+
+    - name: Upload AppImage as Artifact (for manual trigger)
+      uses: actions/upload-artifact@v4
+      if: github.event_name == 'workflow_dispatch'
+      with:
+        name: HMCL-AppImage
+        path: HMCL-${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}.AppImage
