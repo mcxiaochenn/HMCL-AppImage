@@ -71,14 +71,14 @@ jobs:
         cp AppDir/HMCL.png AppDir/usr/share/icons/hicolor/256x256/apps/HMCL.png
 
         cat <<EOF > AppDir/HMCL.desktop
-[Desktop Entry]
-Name=HMCL
-Exec=HMCL.sh
-Icon=HMCL
-Type=Application
-Categories=Game;Utility;
-Comment=Hello Minecraft! Launcher
-EOF
+        [Desktop Entry]
+        Name=HMCL
+        Exec=HMCL.sh
+        Icon=HMCL
+        Type=Application
+        Categories=Game;Utility;
+        Comment=Hello Minecraft! Launcher
+        EOF
 
     - name: Build AppImage
       run: |
