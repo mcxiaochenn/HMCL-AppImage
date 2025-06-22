@@ -16,41 +16,44 @@ jobs:
     - name: Set up environment
       run: |
         sudo apt-get update
-        sudo apt-get install -y libfuse2
+        sudo apt-get install -y libfuse2 axel
         wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
+        # wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage -O appimagetool
         chmod +x appimagetool
         sudo mv appimagetool /usr/local/bin/
         sudo apt-get install -y imagemagick
-        # Remove system JRE installation as we will bundle our own
-        # sudo apt-get install -y openjdk-17-jre
+
+    - name: Set Folders
+      run: |
+        git clone https://github.com/mcxiaochenn/HMCL-AppImage.git
+        cd HMCL-AppImage
+        cp -r HMCL.AppDir ~/
 
     - name: Download and extract JDK 21
       run: |
-        JDK_URL="https://cdn.azul.com/zulu/bin/zulu21.42.19-ca-jdk21.0.7-linux_x64.tar.gz?_gl=1*qi3pot*_gcl_au*MTIzNjA0MTg5MS4xNzQ5NDY1MTYx*_ga*Mzc1Nzc1OTkxLjE3NDk0NjUxNjE.*_ga_42DEGWGYD5*czE3NTA1ODUxNzQkbzIkZzEkdDE3NTA1ODUyMTIkajIyJGwwJGgxNzE3MTQzNjMz"
-        wget -q "$JDK_URL" -O zulu21.tar.gz
-        mkdir -p AppDir/usr/lib/jvm
-        tar -xzf zulu21.tar.gz -C AppDir/usr/lib/jvm --strip-components=1
-        echo "JAVA_HOME=$PWD/AppDir/usr/lib/jvm" >> $GITHUB_ENV
+        JDK_URL="https://cdn.azul.com/zulu/bin/zulu21.42.19-ca-jdk21.0.7-linux_x64.tar.gz"
+        axel $JDK_URL -o zulu21.tar.gz 
+        tar -xzf zulu21.tar.gz -C HMCL.AppDir/usr/lib/jdk --strip-components=1
 
     - name: Download and extract WenQuanYi font
       run: |
         FONT_URL="https://github.com/layerssss/wqy/raw/refs/heads/gh-pages/fonts/WenQuanYiZenHei.ttf"
         wget -q "$FONT_URL" -O WenQuanYiZenHei.ttf
-        mkdir -p AppDir/usr/share/fonts/truetype/wenquanyi
-        mv WenQuanYiZenHei.ttf AppDir/usr/share/fonts/truetype/wenquanyi/
+        mkdir -p HMCL.AppDir/usr/share/fonts/truetype/wenquanyi
+        mv WenQuanYiZenHei.ttf HMCL.AppDir/usr/share/fonts/truetype/wenquanyi/
 
-    - name: Get HMCL .sh file and icon
+    - name: Get HMCL .jar file
       id: get_hmcl_assets
       run: |
         if [[ "${{ github.event_name }}" == "release" ]]; then
-          # Triggered by release event, get .sh from release assets
-          SH_URL=$(jq --raw-output ".assets[] | select(.name | endswith(\".sh\")) | .browser_download_url" "$GITHUB_EVENT_PATH")
-          if [ -z "$SH_URL" ]; then
-            echo "No .sh file found in release assets. Exiting."
+          # Triggered by release event, get .jar from release assets
+          JAR_URL=$(jq --raw-output ".assets[] | select(.name | endswith(\".jar\")) | .browser_download_url" "$GITHUB_EVENT_PATH")
+          if [ -z "$JAR_URL" ]; then
+            echo "No .jar file found in release assets. Exiting."
             exit 1
           fi
-          wget -q "$SH_URL" -O HMCL.sh
-          HMCL_VERSION=$(echo "$SH_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.sh)")
+          wget -q "$JAR_URL" -O HMCL.jar
+          HMCL_VERSION=$(echo "$JAR_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.jar)")
         else
           # Triggered manually, find latest stable release
           LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq '.[0]')
@@ -58,61 +61,25 @@ jobs:
             echo "Could not find latest stable release. Exiting."
             exit 1
           fi
-          SH_URL=$(echo "$LATEST_RELEASE_INFO" | jq --raw-output ".assets[] | select(.name | endswith(\".sh\")) | .browser_download_url")
-          if [ -z "$SH_URL" ]; then
-            echo "No .sh file found in latest stable release assets. Exiting."
+          JAR_URL=$(echo "$LATEST_RELEASE_INFO" | jq --raw-output ".assets[] | select(.name | endswith(\".jar\")) | .browser_download_url")
+          if [ -z "$JAR_URL" ]; then
+            echo "No .jar file found in latest stable release assets. Exiting."
             exit 1
           fi
-          wget -q "$SH_URL" -O HMCL.sh
-          HMCL_VERSION=$(echo "$SH_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.sh)")
+          wget -q "$JAR_URL" -O HMCL.jar
+          HMCL_VERSION=$(echo "$JAR_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.jar)")
         fi
         echo "HMCL_VERSION=$HMCL_VERSION" >> "$GITHUB_OUTPUT"
-        echo "HMCL_SH_FILE=HMCL.sh" >> "$GITHUB_OUTPUT"
+        echo "HMCL_JAR_FILE=HMCL.jar" >> "$GITHUB_OUTPUT"
 
-        # Download and convert icon
-        ICON_URL="https://raw.githubusercontent.com/HMCL-dev/HMCL/refs/tags/release-3.6.12/HMCLauncher/HMCL/HMCL.ico"
-        wget -q "$ICON_URL" -O HMCL.ico
-        convert HMCL.ico[3] HMCL.png
-        echo "HMCL_ICON=HMCL.png" >> "$GITHUB_OUTPUT"
-
-    - name: Extract HMCL.sh and prepare AppDir
+    - name: Extract HMCL.jar
       run: |
-        mkdir -p AppDir/usr/bin
-        mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
-        mkdir -p AppDir/usr/share/applications
-        mkdir -p AppDir/opt/hmcl
+        cp HMCL.jar HMCL.AppDir/usr/share/java/
 
-        # Extract the contents of the .sh file into AppDir/opt/hmcl
-        chmod +x ${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }}
-        ./${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }} --target AppDir/opt/hmcl --skip-desktop --skip-appimage
-
-        # Create a wrapper script to launch HMCL, using bundled JDK
-        cat <<\EOF > AppDir/usr/bin/HMCL.sh
-        #!/bin/bash
-        export JAVA_HOME="$(dirname "$(readlink -f "${0}")")/../lib/jvm"
-        export PATH="$JAVA_HOME/bin:$PATH"
-        export FONTCONFIG_PATH="$(dirname "$(readlink -f "${0}")")/../share/fonts"
-        exec "$(dirname "$(readlink -f "${0}")")/../opt/hmcl/HMCL" "$@"
-        EOF
-        chmod +x AppDir/usr/bin/HMCL.sh
-
-        mv ${{ steps.get_hmcl_assets.outputs.HMCL_ICON }} AppDir/HMCL.png
-        cp AppDir/HMCL.png AppDir/usr/share/icons/hicolor/256x256/apps/HMCL.png
-
-        cat <<EOF > AppDir/HMCL.desktop
-        [Desktop Entry]
-        Name=HMCL
-        Exec=HMCL.sh
-        Icon=HMCL
-        Type=Application
-        Categories=Game;Utility;
-        Comment=Hello Minecraft! Launcher
-        EOF
-
-    - name: Build AppImage
+        - name: Build AppImage
       run: |
         export VERSION=${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}
-        ARCH=x86_64 appimagetool AppDir HMCL-$VERSION.AppImage
+        ARCH=x86_64 appimagetool HMCL.AppDir HMCL-$VERSION.AppImage
 
     - name: Upload AppImage to Release
       uses: softprops/action-gh-release@v1
@@ -131,5 +98,3 @@ jobs:
       with:
         name: HMCL-AppImage
         path: HMCL-${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}.AppImage
-
-

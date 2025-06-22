@@ -1,0 +1,10 @@
+#!/bin/bash
+
+echo 'helloworld'
+
+# 获取AppDir绝对路径
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+APP_DIR="$(dirname "$SCRIPT_DIR")"
+
+# 使用内嵌JDK运行JAR
+"$APP_DIR/lib/jdk/bin/java" -jar "$APP_DIR/share/java/HMCL.jar"
