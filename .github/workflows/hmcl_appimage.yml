@@ -26,7 +26,7 @@ jobs:
 
     - name: Download and extract JDK 21
       run: |
-        JDK_URL="https://cdn.azul.com/zulu/bin/zulu21.42.19-ca-jdk21.0.7-linux_x64.tar.gz"
+        JDK_URL="https://cdn.azul.com/zulu/bin/zulu21.42.19-ca-jdk21.0.7-linux_x64.tar.gz?_gl=1*qi3pot*_gcl_au*MTIzNjA0MTg5MS4xNzQ5NDY1MTYx*_ga*Mzc1Nzc1OTkxLjE3NDk0NjUxNjE.*_ga_42DEGWGYD5*czE3NTA1ODUxNzQkbzIkZzEkdDE3NTA1ODUyMTIkajIyJGwwJGgxNzE3MTQzNjMz"
         wget -q "$JDK_URL" -O zulu21.tar.gz
         mkdir -p AppDir/usr/lib/jvm
         tar -xzf zulu21.tar.gz -C AppDir/usr/lib/jvm --strip-components=1
@@ -53,7 +53,7 @@ jobs:
           HMCL_VERSION=$(echo "$SH_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.sh)")
         else
           # Triggered manually, find latest stable release
-          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq 
+          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq '.[0]')
           if [ -z "$LATEST_RELEASE_INFO" ] || [ "$LATEST_RELEASE_INFO" == "null" ]; then
             echo "Could not find latest stable release. Exiting."
             exit 1
