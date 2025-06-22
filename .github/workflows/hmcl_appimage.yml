@@ -27,7 +27,7 @@ jobs:
       run: |
         if [[ "${{ github.event_name }}" == "release" ]]; then
           # Triggered by release event, get .sh from release assets
-          SH_URL=$(jq --raw-output '.release.assets[] | select(.name | endswith(".sh")) | .browser_download_url' "$GITHUB_EVENT_PATH")
+          SH_URL=$(jq --raw-output ".assets[] | select(.name | endswith(\".sh\")) | .browser_download_url" "$GITHUB_EVENT_PATH")
           if [ -z "$SH_URL" ]; then
             echo "No .sh file found in release assets. Exiting."
             exit 1
@@ -55,7 +55,7 @@ jobs:
         # Download and convert icon
         ICON_URL="https://raw.githubusercontent.com/HMCL-dev/HMCL/refs/tags/release-3.6.12/HMCLauncher/HMCL/HMCL.ico"
         wget -q "$ICON_URL" -O HMCL.ico
-        convert HMCL.ico HMCL.png
+        convert HMCL.ico[3] HMCL.png
         echo "HMCL_ICON=HMCL.png" >> "$GITHUB_OUTPUT"
 
     - name: Create AppDir and .desktop file
