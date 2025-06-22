@@ -1,0 +1,106 @@
+name: HMCL AppImage Builder
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up environment
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libfuse2
+        wget -q https://github.com/AppImage/AppImageKit/releases/download/13/appimagetool-x86_64.AppImage -O appimagetool
+        chmod +x appimagetool
+        sudo mv appimagetool /usr/local/bin/
+        sudo apt-get install -y imagemagick
+
+    - name: Get HMCL .sh file and icon
+      id: get_hmcl_assets
+      run: |
+        if [[ "${{ github.event_name }}" == "release" ]]; then
+          # Triggered by release event, get .sh from release assets
+          SH_URL=$(jq --raw-output '.release.assets[] | select(.name | endswith(".sh")) | .browser_download_url' "$GITHUB_EVENT_PATH")
+          if [ -z "$SH_URL" ]; then
+            echo "No .sh file found in release assets. Exiting."
+            exit 1
+          fi
+          wget -q "$SH_URL" -O HMCL.sh
+          HMCL_VERSION=$(echo "$SH_URL" | grep -oP 'HMCL-\K[0-9.]+(?=\.sh)')
+        else
+          # Triggered manually, find latest stable release
+          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq '[.[] | select(.prerelease == false)][0]')
+          if [ -z "$LATEST_RELEASE_INFO" ] || [ "$LATEST_RELEASE_INFO" == "null" ]; then
+            echo "Could not find latest stable release. Exiting."
+            exit 1
+          fi
+          SH_URL=$(echo "$LATEST_RELEASE_INFO" | jq --raw-output '.assets[] | select(.name | endswith(".sh")) | .browser_download_url')
+          if [ -z "$SH_URL" ]; then
+            echo "No .sh file found in latest stable release assets. Exiting."
+            exit 1
+          fi
+          wget -q "$SH_URL" -O HMCL.sh
+          HMCL_VERSION=$(echo "$SH_URL" | grep -oP 'HMCL-\K[0-9.]+(?=\.sh)')
+        fi
+        echo "HMCL_VERSION=$HMCL_VERSION" >> "$GITHUB_OUTPUT"
+        echo "HMCL_SH_FILE=HMCL.sh" >> "$GITHUB_OUTPUT"
+
+        # Download and convert icon
+        ICON_URL="https://raw.githubusercontent.com/HMCL-dev/HMCL/refs/tags/release-3.6.12/HMCLauncher/HMCL/HMCL.ico"
+        wget -q "$ICON_URL" -O HMCL.ico
+        convert HMCL.ico HMCL.png
+        echo "HMCL_ICON=HMCL.png" >> "$GITHUB_OUTPUT"
+
+    - name: Create AppDir and .desktop file
+      run: |
+        mkdir -p AppDir/usr/bin
+        mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
+        mkdir -p AppDir/usr/share/applications
+
+        mv ${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }} AppDir/usr/bin/HMCL.sh
+        chmod +x AppDir/usr/bin/HMCL.sh
+
+        mv ${{ steps.get_hmcl_assets.outputs.HMCL_ICON }} AppDir/HMCL.png
+        cp AppDir/HMCL.png AppDir/usr/share/icons/hicolor/256x256/apps/HMCL.png
+
+        cat <<EOF > AppDir/HMCL.desktop
+[Desktop Entry]
+Name=HMCL
+Exec=HMCL.sh
+Icon=HMCL
+Type=Application
+Categories=Game;Utility;
+Comment=Hello Minecraft! Launcher
+EOF
+
+    - name: Build AppImage
+      run: |
+        export VERSION=${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}
+        appimagetool AppDir HMCL-$VERSION.AppImage
+
+    - name: Upload AppImage to Release
+      uses: softprops/action-gh-release@v1
+      if: github.event_name == 'release'
+      with:
+        files: HMCL-${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}.AppImage
+        tag_name: ${{ github.event.release.tag_name }}
+        name: ${{ github.event.release.name }}
+        body: ${{ github.event.release.body }}
+        prerelease: ${{ github.event.release.prerelease }}
+        draft: ${{ github.event.release.draft }}
+
+    - name: Upload AppImage as Artifact (for manual trigger)
+      uses: actions/upload-artifact@v4
+      if: github.event_name == 'workflow_dispatch'
+      with:
+        name: HMCL-AppImage
+        path: HMCL-${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}.AppImage
+
+
