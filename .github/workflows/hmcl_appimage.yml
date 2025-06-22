@@ -33,21 +33,21 @@ jobs:
             exit 1
           fi
           wget -q "$SH_URL" -O HMCL.sh
-          HMCL_VERSION=$(echo "$SH_URL" | grep -oP 'HMCL-\K[0-9.]+(?=\.sh)')
+          HMCL_VERSION=$(echo "$SH_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.sh)")
         else
           # Triggered manually, find latest stable release
-          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq '[.[] | select(.prerelease == false)][0]')
+          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq 
           if [ -z "$LATEST_RELEASE_INFO" ] || [ "$LATEST_RELEASE_INFO" == "null" ]; then
             echo "Could not find latest stable release. Exiting."
             exit 1
           fi
-          SH_URL=$(echo "$LATEST_RELEASE_INFO" | jq --raw-output '.assets[] | select(.name | endswith(".sh")) | .browser_download_url')
+          SH_URL=$(echo "$LATEST_RELEASE_INFO" | jq --raw-output ".assets[] | select(.name | endswith(\".sh\")) | .browser_download_url")
           if [ -z "$SH_URL" ]; then
             echo "No .sh file found in latest stable release assets. Exiting."
             exit 1
           fi
           wget -q "$SH_URL" -O HMCL.sh
-          HMCL_VERSION=$(echo "$SH_URL" | grep -oP 'HMCL-\K[0-9.]+(?=\.sh)')
+          HMCL_VERSION=$(echo "$SH_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.sh)")
         fi
         echo "HMCL_VERSION=$HMCL_VERSION" >> "$GITHUB_OUTPUT"
         echo "HMCL_SH_FILE=HMCL.sh" >> "$GITHUB_OUTPUT"
@@ -64,12 +64,6 @@ jobs:
         mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
         mkdir -p AppDir/usr/share/applications
 
-        mv ${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }} AppDir/usr/bin/HMCL.sh
-        chmod +x AppDir/usr/bin/HMCL.sh
-
-        mv ${{ steps.get_hmcl_assets.outputs.HMCL_ICON }} AppDir/HMCL.png
-        cp AppDir/HMCL.png AppDir/usr/share/icons/hicolor/256x256/apps/HMCL.png
-
         cat <<EOF > AppDir/HMCL.desktop
         [Desktop Entry]
         Name=HMCL
@@ -80,10 +74,16 @@ jobs:
         Comment=Hello Minecraft! Launcher
         EOF
 
+        mv ${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }} AppDir/usr/bin/HMCL.sh
+        chmod +x AppDir/usr/bin/HMCL.sh
+
+        mv ${{ steps.get_hmcl_assets.outputs.HMCL_ICON }} AppDir/HMCL.png
+        cp AppDir/HMCL.png AppDir/usr/share/icons/hicolor/256x256/apps/HMCL.png
+
     - name: Build AppImage
       run: |
         export VERSION=${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}
-        appimagetool AppDir HMCL-$VERSION.AppImage
+        ARCH=x86_64 appimagetool AppDir HMCL-$VERSION.AppImage
 
     - name: Upload AppImage to Release
       uses: softprops/action-gh-release@v1
