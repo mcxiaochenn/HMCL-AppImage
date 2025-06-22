@@ -76,7 +76,7 @@ jobs:
       run: |
         cp HMCL.jar HMCL.AppDir/usr/share/java/
 
-        - name: Build AppImage
+    - name: Build AppImage
       run: |
         export VERSION=${{ steps.get_hmcl_assets.outputs.HMCL_VERSION }}
         ARCH=x86_64 appimagetool HMCL.AppDir HMCL-$VERSION.AppImage
