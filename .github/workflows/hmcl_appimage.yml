@@ -87,7 +87,7 @@ jobs:
         ./${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }} --target AppDir/opt/hmcl --skip-desktop --skip-appimage
 
         # Create a wrapper script to launch HMCL, using bundled JDK
-        cat <<\'EOF' > AppDir/usr/bin/HMCL.sh
+        cat <<\EOF > AppDir/usr/bin/HMCL.sh
         #!/bin/bash
         export JAVA_HOME="$(dirname "$(readlink -f "${0}")")/../lib/jvm"
         export PATH="$JAVA_HOME/bin:$PATH"
