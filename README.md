@@ -37,3 +37,7 @@
 ## 许可证
 
 本项目采用MIT许可证。
+
+## 来源
+
+- 部分文案或代码来自[**DeepSeek**](https://www.deepseek.com/)与[**manus**](https://manus.im/)
