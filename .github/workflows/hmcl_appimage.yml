@@ -34,10 +34,10 @@ jobs:
 
     - name: Download and extract WenQuanYi font
       run: |
-        FONT_URL="https://github.com/layerssss/wqy/raw/gh-pages/fonts/wqy-zenhei.ttc"
-        wget -q "$FONT_URL" -O wqy-zenhei.ttc
+        FONT_URL="https://github.com/layerssss/wqy/raw/refs/heads/gh-pages/fonts/WenQuanYiZenHei.ttf"
+        wget -q "$FONT_URL" -O WenQuanYiZenHei.ttf
         mkdir -p AppDir/usr/share/fonts/truetype/wenquanyi
-        mv wqy-zenhei.ttc AppDir/usr/share/fonts/truetype/wenquanyi/
+        mv WenQuanYiZenHei.ttf AppDir/usr/share/fonts/truetype/wenquanyi/
 
     - name: Get HMCL .sh file and icon
       id: get_hmcl_assets
