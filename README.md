@@ -6,7 +6,7 @@
 
 - **自动监听**: 监听 [HMCL-dev/HMCL](https://github.com/HMCL-dev/HMCL) 项目的 `release` 事件，当有新的稳定版本发布时自动触发。
 - **手动触发**: 支持通过GitHub Actions界面手动触发工作流，用于获取最新稳定版并打包。
-- **AppImage打包**: 自动下载HMCL的 `.sh` 文件，并将其打包成独立的AppImage可执行文件。
+- **AppImage打包**: 自动下载HMCL的 `.jar` 文件，并将其打包成独立的AppImage可执行文件。
 - **图标集成**: 使用HMCL官方图标 (`HMCL.ico`) 并转换为PNG格式，集成到AppImage中。
 - **自动发布**: 对于自动触发的构建，生成的AppImage将作为发布资产上传到HMCL的GitHub Releases页面。
 - **手动下载**: 对于手动触发的构建，生成的AppImage将作为工作流产物提供下载。
@@ -39,7 +39,6 @@
 ## 文件说明
 
 - `.github/workflows/hmcl_appimage.yml`: GitHub Actions工作流定义文件。
-- `technical_solution.md`: 本项目的技术实现方案文档。
 
 ## 注意事项
 
