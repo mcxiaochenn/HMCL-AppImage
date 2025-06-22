@@ -21,6 +21,23 @@ jobs:
         chmod +x appimagetool
         sudo mv appimagetool /usr/local/bin/
         sudo apt-get install -y imagemagick
+        # Remove system JRE installation as we will bundle our own
+        # sudo apt-get install -y openjdk-17-jre
+
+    - name: Download and extract JDK 21
+      run: |
+        JDK_URL="https://cdn.azul.com/zulu/bin/zulu21.42.19-ca-jdk21.0.7-linux_x64.tar.gz"
+        wget -q "$JDK_URL" -O zulu21.tar.gz
+        mkdir -p AppDir/usr/lib/jvm
+        tar -xzf zulu21.tar.gz -C AppDir/usr/lib/jvm --strip-components=1
+        echo "JAVA_HOME=$PWD/AppDir/usr/lib/jvm" >> $GITHUB_ENV
+
+    - name: Download and extract WenQuanYi font
+      run: |
+        FONT_URL="https://github.com/layerssss/wqy/raw/gh-pages/fonts/wqy-zenhei.ttc"
+        wget -q "$FONT_URL" -O wqy-zenhei.ttc
+        mkdir -p AppDir/usr/share/fonts/truetype/wenquanyi
+        mv wqy-zenhei.ttc AppDir/usr/share/fonts/truetype/wenquanyi/
 
     - name: Get HMCL .sh file and icon
       id: get_hmcl_assets
@@ -36,7 +53,7 @@ jobs:
           HMCL_VERSION=$(echo "$SH_URL" | grep -oP "HMCL-\K[0-9.]+(?=\\.sh)")
         else
           # Triggered manually, find latest stable release
-          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq '[.[] | select(.prerelease == false)][0]')
+          LATEST_RELEASE_INFO=$(curl -s https://api.github.com/repos/HMCL-dev/HMCL/releases | jq 
           if [ -z "$LATEST_RELEASE_INFO" ] || [ "$LATEST_RELEASE_INFO" == "null" ]; then
             echo "Could not find latest stable release. Exiting."
             exit 1
@@ -58,11 +75,29 @@ jobs:
         convert HMCL.ico[3] HMCL.png
         echo "HMCL_ICON=HMCL.png" >> "$GITHUB_OUTPUT"
 
-    - name: Create AppDir and .desktop file
+    - name: Extract HMCL.sh and prepare AppDir
       run: |
         mkdir -p AppDir/usr/bin
         mkdir -p AppDir/usr/share/icons/hicolor/256x256/apps
         mkdir -p AppDir/usr/share/applications
+        mkdir -p AppDir/opt/hmcl
+
+        # Extract the contents of the .sh file into AppDir/opt/hmcl
+        chmod +x ${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }}
+        ./${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }} --target AppDir/opt/hmcl --skip-desktop --skip-appimage
+
+        # Create a wrapper script to launch HMCL, using bundled JDK
+        cat <<\'EOF' > AppDir/usr/bin/HMCL.sh
+#!/bin/bash
+export JAVA_HOME="$(dirname "$(readlink -f "${0}")")/../lib/jvm"
+export PATH="$JAVA_HOME/bin:$PATH"
+export FONTCONFIG_PATH="$(dirname "$(readlink -f "${0}")")/../share/fonts"
+exec "$(dirname "$(readlink -f "${0}")")/../opt/hmcl/HMCL" "$@"
+EOF
+        chmod +x AppDir/usr/bin/HMCL.sh
+
+        mv ${{ steps.get_hmcl_assets.outputs.HMCL_ICON }} AppDir/HMCL.png
+        cp AppDir/HMCL.png AppDir/usr/share/icons/hicolor/256x256/apps/HMCL.png
 
         cat <<EOF > AppDir/HMCL.desktop
         [Desktop Entry]
@@ -73,12 +108,6 @@ jobs:
         Categories=Game;Utility;
         Comment=Hello Minecraft! Launcher
         EOF
-
-        mv ${{ steps.get_hmcl_assets.outputs.HMCL_SH_FILE }} AppDir/usr/bin/HMCL.sh
-        chmod +x AppDir/usr/bin/HMCL.sh
-
-        mv ${{ steps.get_hmcl_assets.outputs.HMCL_ICON }} AppDir/HMCL.png
-        cp AppDir/HMCL.png AppDir/usr/share/icons/hicolor/256x256/apps/HMCL.png
 
     - name: Build AppImage
       run: |
